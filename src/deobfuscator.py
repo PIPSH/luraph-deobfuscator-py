@@ -31,6 +31,12 @@ from .exceptions import VMEmulationError
 logger = logging.getLogger(__name__)
 
 
+def _resolve_env_script_key() -> str:
+    """Return the script key from the environment, preferring SCRIPT_KEY."""
+
+    return (os.environ.get("SCRIPT_KEY") or os.environ.get("LURAPH_SCRIPT_KEY") or "").strip()
+
+
 _VM_SCAFFOLD_PATTERNS: Tuple[re.Pattern[str], ...] = (
     re.compile(r"vm_dispatch", re.IGNORECASE),
     re.compile(r"vm_stack", re.IGNORECASE),
@@ -303,7 +309,7 @@ class LuaDeobfuscator:
                     metadata["handler_bytecode_error"] = message
                     payload_info_meta = payload_info.metadata or {}
                     literal_key = bool(payload_info_meta.get("script_key"))
-                    env_key = os.environ.get("LURAPH_SCRIPT_KEY", "")
+                    env_key = _resolve_env_script_key()
                     if (
                         version.name in {"luraph_v14_4_initv4", "v14.4.1"}
                         and not override_key
@@ -311,7 +317,7 @@ class LuaDeobfuscator:
                         and not env_key
                     ):
                         self.logger.error(
-                            "script key required to decode %s payload: %s",
+                            "script key required to decode %s payload; set SCRIPT_KEY or LURAPH_SCRIPT_KEY: %s",
                             version.name,
                             message,
                         )
@@ -330,7 +336,7 @@ class LuaDeobfuscator:
                     if version.name in {"luraph_v14_4_initv4", "v14.4.1"}:
                         chunk_key: str | None = override_key or payload_info.metadata.get("script_key")
                         if not chunk_key:
-                            chunk_key = os.environ.get("LURAPH_SCRIPT_KEY", "") or None
+                            chunk_key = _resolve_env_script_key() or None
                         if chunk_key:
                             (
                                 chunk_parts,
