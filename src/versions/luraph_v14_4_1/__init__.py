@@ -26,6 +26,12 @@ from ..initv4 import InitV4Bootstrap
 LOG = logging.getLogger(__name__)
 
 
+def _resolve_env_script_key() -> str:
+    """Return the script key from the environment, preferring SCRIPT_KEY."""
+
+    return (os.environ.get("SCRIPT_KEY") or os.environ.get("LURAPH_SCRIPT_KEY") or "").strip()
+
+
 # ---------------------------------------------------------------------------
 # Opcode table compatibility
 # ---------------------------------------------------------------------------
@@ -471,10 +477,12 @@ class LuraphV1441(VersionHandler):
         literal = metadata.get("script_key")
         if isinstance(literal, str) and literal.strip():
             return literal.strip(), "literal"
-        env_key = os.environ.get("LURAPH_SCRIPT_KEY", "")
-        if env_key.strip():
-            return env_key.strip(), "environment"
-        raise RuntimeError("script key required to decode initv4 payload")
+        env_key = _resolve_env_script_key()
+        if env_key:
+            return env_key, "environment"
+        raise RuntimeError(
+            "script key required to decode initv4 payload; set SCRIPT_KEY or LURAPH_SCRIPT_KEY"
+        )
 
     # ------------------------------------------------------------------
     def _decode_single_blob(self, blob: str, script_key: str) -> tuple[bytes, Dict[str, Any]]:
