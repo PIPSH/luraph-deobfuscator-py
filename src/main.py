@@ -38,6 +38,7 @@ _SCRIPT_KEY_PATTERNS: Tuple[re.Pattern[str], ...] = (
 )
 _SCRIPT_KEY_REQUIRED_RE = re.compile(r"script_key\s*=\s*script_key\s*or", re.IGNORECASE)
 _LPH_KEY_CANDIDATE_RE = re.compile(r"[a-z0-9]{18,24}")
+_SCRIPT_KEY_TOKEN_RE = re.compile(r"[A-Za-z0-9]{18,40}")
 _DEFAULT_TEST_KEYS = ("koqzpaexlygm9b227uy",)
 
 
@@ -102,6 +103,19 @@ def _candidate_script_keys(text: Optional[str]) -> List[str]:
             token = match.group(0)
             if token not in candidates:
                 candidates.append(token)
+    return candidates
+
+
+def _scan_script_key_tokens(text: Optional[str]) -> List[str]:
+    """Return generic script-key-like tokens discovered in ``text``."""
+
+    if not text:
+        return []
+    candidates: List[str] = []
+    for match in _SCRIPT_KEY_TOKEN_RE.finditer(text):
+        token = match.group(0)
+        if token not in candidates:
+            candidates.append(token)
     return candidates
 
 
@@ -1416,6 +1430,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                 for token in _candidate_script_keys(content):
                     if token not in candidate_pool:
                         candidate_pool.append(token)
+            for token in _scan_script_key_tokens(previous):
+                if token not in candidate_pool:
+                    candidate_pool.append(token)
+            if content != previous:
+                for token in _scan_script_key_tokens(content):
+                    if token not in candidate_pool:
+                        candidate_pool.append(token)
             if candidate_pool:
                 for fallback in _DEFAULT_TEST_KEYS:
                     if fallback not in candidate_pool:
@@ -1459,20 +1480,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         script_key_missing_forced = False
         script_key_required = _requires_script_key(previous)
         if not script_key_available and script_key_required:
+            script_key_missing_forced = True
+            warning_text = f"script key missing for {item.source}; continuing without a key"
             if args.force:
-                script_key_missing_forced = True
                 warning_text = (
                     f"script key missing for {item.source}; continuing due to --force"
                 )
-                logging.getLogger(__name__).warning(warning_text)
-            else:
-                error_text = (
-                    f"script key required to decode {item.source}; supply --script-key or set "
-                    "SCRIPT_KEY/LURAPH_SCRIPT_KEY (or rerun with --force)"
-                )
-                logging.getLogger(__name__).error(error_text)
-                print(error_text, file=sys.stderr, flush=True)
-                return WorkResult(item, False, error="script key missing")
+            logging.getLogger(__name__).warning(warning_text)
 
         try:
             for iteration in range(iterations):
