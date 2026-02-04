@@ -40,6 +40,13 @@ _LPH_KEY_CANDIDATE_RE = re.compile(r"[a-z0-9]{18,24}")
 _DEFAULT_TEST_KEYS = ("koqzpaexlygm9b227uy",)
 
 
+def _resolve_env_script_key() -> Optional[str]:
+    """Return the script key from the environment, preferring SCRIPT_KEY."""
+
+    value = (os.environ.get("SCRIPT_KEY") or os.environ.get("LURAPH_SCRIPT_KEY") or "").strip()
+    return value or None
+
+
 def _detect_script_key(text: Optional[str]) -> Optional[str]:
     """Return an inline script key detected in ``text`` if present."""
 
@@ -1114,7 +1121,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "--script-key",
         dest="script_key",
-        help="script key to decrypt initv4 payloads (e.g. Luraph v14.4.1)",
+        help="script key to decrypt initv4 payloads (falls back to SCRIPT_KEY/LURAPH_SCRIPT_KEY)",
     )
     parser.add_argument(
         "--bootstrapper",
@@ -1326,6 +1333,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             elif inline_script_key:
                 script_key_source = "literal"
         if not script_key_available:
+            env_key = _resolve_env_script_key()
+            if env_key:
+                script_key_value = env_key
+                script_key_available = True
+                script_key_source = "environment"
+        if not script_key_available:
             inline_script_key = _detect_script_key(content)
             if inline_script_key:
                 script_key_available = True
@@ -1415,8 +1428,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 logging.getLogger(__name__).warning(warning_text)
             else:
                 error_text = (
-                    f"script key required to decode {item.source}; supply --script-key "
-                    "or rerun with --force"
+                    f"script key required to decode {item.source}; supply --script-key or set "
+                    "SCRIPT_KEY/LURAPH_SCRIPT_KEY (or rerun with --force)"
                 )
                 logging.getLogger(__name__).error(error_text)
                 print(error_text, file=sys.stderr, flush=True)

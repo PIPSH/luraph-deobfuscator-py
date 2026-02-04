@@ -60,9 +60,11 @@ python -m src.sandbox_runner --init initv4.lua --json Obfuscated.json --key mm3u
 tools\run_capture_windows.cmd --key <script_key>
 ```
 
-The sandbox honours the `SCRIPT_KEY`/`LURAPH_SCRIPT_KEY` environment variables.
-When the CLI flag `--key` is omitted the runner will fall back to the
-environment and inline bootstrap hints before resorting to fixture mode.
+The sandbox honours the `SCRIPT_KEY` (preferred) and `LURAPH_SCRIPT_KEY`
+environment variables. When the CLI flag `--key` is omitted the runner will
+fall back to the environment (checking `SCRIPT_KEY` first, then
+`LURAPH_SCRIPT_KEY`) and inline bootstrap hints before resorting to fixture
+mode.
 Deterministic CI runs can combine `--use-fixtures` with
 `--lifter-mode fast` to bypass runtime capture and verification while still
 producing a full set of artifacts:
@@ -652,10 +654,9 @@ python main.py --script-key <your_key> examples/v1441_hello.lua
 ```
 
 Keys are issued alongside protected scripts by Luraph.  For automated runs you
-can also set the `LURAPH_SCRIPT_KEY` environment variable.  Successful decoding
-produces readable Lua just like earlier versions, with the VM scaffolding
-removed and the recovered script formatted via the built-in beautifier.  The
-`examples/v1441_hello.lua` sample together with the corresponding golden output
-under `tests/golden/` can be used as a quick smoke test when validating the
-pipeline.
-
+can also set the `SCRIPT_KEY` (preferred) or `LURAPH_SCRIPT_KEY` environment
+variables. Successful decoding produces readable Lua just like earlier
+versions, with the VM scaffolding removed and the recovered script formatted
+via the built-in beautifier.  The `examples/v1441_hello.lua` sample together
+with the corresponding golden output under `tests/golden/` can be used as a
+quick smoke test when validating the pipeline.
