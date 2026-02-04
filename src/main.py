@@ -25,6 +25,7 @@ from .utils_pkg.ir import IRModule
 from .utils.luraph_vm import canonicalise_opcode_name
 from .utils.opcode_inference import DEFAULT_OPCODE_NAMES
 from .vm.opcode_constants import MANDATORY_MNEMONICS
+from .tools.snapshotter import LuaRuntime, _install_sandbox
 from version_detector import VersionInfo
 
 LOG_FILE = Path("deobfuscator.log")
@@ -115,6 +116,32 @@ def _requires_script_key(text: Optional[str]) -> bool:
     if "initv4" in lowered and "payload =" in lowered:
         return True
     return False
+
+
+def _execute_lua_output(source: str, script_key: Optional[str]) -> tuple[bool, str]:
+    if LuaRuntime is None:
+        return False, "lupa runtime not available"
+    runtime = LuaRuntime(unpack_returned_tuples=True)  # type: ignore[call-arg]
+    _install_sandbox(runtime)
+    globals_table = runtime.globals()
+    output_lines: List[str] = []
+
+    def _capture_print(*values: Any) -> None:
+        rendered = "\t".join(str(value) for value in values)
+        output_lines.append(rendered)
+
+    globals_table["print"] = _capture_print
+    if script_key:
+        globals_table["SCRIPT_KEY"] = script_key
+        globals_table["LURAPH_SCRIPT_KEY"] = script_key
+
+    try:
+        runtime.execute(source)
+    except Exception as exc:
+        return False, f"execution failed: {exc}"
+    if not output_lines:
+        return True, "<no output>"
+    return True, "\n".join(output_lines)
 
 
 class _ColourFormatter(logging.Formatter):
@@ -1098,6 +1125,18 @@ def main(argv: Sequence[str] | None = None) -> int:
         action="store_true",
         help="Allow sandboxed Lua fallback during bootstrap decoding (see security notes)",
     )
+    parser.set_defaults(execute_output=True)
+    parser.add_argument(
+        "--execute-output",
+        action="store_true",
+        help="Execute deobfuscated Lua in a sandboxed runtime and print captured output",
+    )
+    parser.add_argument(
+        "--no-execute-output",
+        dest="execute_output",
+        action="store_false",
+        help="Disable sandboxed execution of deobfuscated Lua output",
+    )
     parser.add_argument(
         "--alphabet",
         dest="manual_alphabet",
@@ -1829,6 +1868,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         ):
             print("\n=== Deobfuscation Report ===")
             print(report.to_text())
+
+        if (
+            not args.detect_only
+            and args.execute_output
+            and args.format != "json"
+            and output_text
+        ):
+            print("\n=== Execution Output ===")
+            ok, execution_output = _execute_lua_output(output_text, script_key_value)
+            if ok:
+                print(execution_output)
+            else:
+                print(f"Execution failed: {execution_output}")
 
         if not args.detect_only:
             decoded_count = 0
