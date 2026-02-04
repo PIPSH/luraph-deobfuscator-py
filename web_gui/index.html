@@ -126,6 +126,20 @@
         flex-wrap: wrap;
         align-items: flex-end;
       }
+      .file-row {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .file-name {
+        color: #9aa4b2;
+        font-size: 13px;
+      }
+      .hint {
+        color: #8b949e;
+        font-size: 12px;
+      }
       .tabs {
         display: flex;
         gap: 8px;
@@ -168,17 +182,23 @@
       <div class="panel">
         <label for="source">Obfuscated Lua</label>
         <textarea id="source" placeholder="Paste obfuscated Lua here..."></textarea>
+        <div class="file-row" style="margin-top:12px;">
+          <input type="file" id="fileInput" accept=".lua,.txt" />
+          <span class="file-name" id="fileName">No file selected.</span>
+        </div>
       </div>
 
       <div class="panel row">
         <div>
           <label for="scriptKey">Script key (optional)</label>
           <input id="scriptKey" placeholder="Leave blank for auto-detection" />
+          <div class="hint" id="keyHint"></div>
         </div>
         <div class="actions">
           <button id="runButton">Deobfuscate</button>
           <button class="secondary" id="copyButton">Copy output</button>
           <button class="ghost" id="copyLogs">Copy logs</button>
+          <button class="ghost" id="detectKey">Auto-detect key</button>
         </div>
       </div>
 
@@ -218,6 +238,11 @@
       const copyLogs = document.getElementById("copyLogs");
       const tabButtons = document.querySelectorAll(".tab-button");
       const warningBanner = document.getElementById("warningBanner");
+      const fileInput = document.getElementById("fileInput");
+      const fileName = document.getElementById("fileName");
+      const detectKey = document.getElementById("detectKey");
+      const keyHint = document.getElementById("keyHint");
+      const keyRegex = /[A-Za-z0-9]{18,40}/g;
 
       function setStatus(text, color = "#58a6ff") {
         status.textContent = text;
@@ -267,6 +292,24 @@
         switchTab("stdout");
       }
 
+      function findKeyCandidates(text) {
+        if (!text) return [];
+        const matches = text.match(keyRegex) || [];
+        return [...new Set(matches)];
+      }
+
+      function applyAutoKey() {
+        const candidates = findKeyCandidates(source.value);
+        if (candidates.length === 0) {
+          keyHint.textContent = "No key-like tokens detected.";
+          setStatus("No script key detected.", "#f85149");
+          return;
+        }
+        scriptKey.value = candidates[0];
+        keyHint.textContent = `Detected ${candidates.length} candidate(s). Using: ${candidates[0]}`;
+        setStatus("Script key auto-detected.", "#3fb950");
+      }
+
       runButton.addEventListener("click", () => {
         if (!source.value.trim()) {
           setStatus("Please paste an obfuscated script first.", "#f85149");
@@ -292,6 +335,21 @@
 
       tabButtons.forEach((button) => {
         button.addEventListener("click", () => switchTab(button.dataset.tab));
+      });
+
+      detectKey.addEventListener("click", () => applyAutoKey());
+
+      fileInput.addEventListener("change", async (event) => {
+        const file = event.target.files[0];
+        if (!file) {
+          fileName.textContent = "No file selected.";
+          return;
+        }
+        fileName.textContent = file.name;
+        const text = await file.text();
+        source.value = text;
+        keyHint.textContent = "";
+        applyAutoKey();
       });
     </script>
   </body>
