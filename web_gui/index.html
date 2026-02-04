@@ -191,7 +191,8 @@
       <div class="panel row">
         <div>
           <label for="scriptKey">Script key (optional)</label>
-          <input id="scriptKey" placeholder="Leave blank for auto-detection" />
+          <input id="scriptKey" list="keyCandidates" placeholder="Leave blank for auto-detection" />
+          <datalist id="keyCandidates"></datalist>
           <div class="hint" id="keyHint"></div>
         </div>
         <div class="actions">
@@ -242,7 +243,14 @@
       const fileName = document.getElementById("fileName");
       const detectKey = document.getElementById("detectKey");
       const keyHint = document.getElementById("keyHint");
+      const keyCandidates = document.getElementById("keyCandidates");
       const keyRegex = /[A-Za-z0-9]{18,40}/g;
+      const keyLiteralPatterns = [
+        /script_key\\s*=\\s*script_key\\s*or\\s*['\"]([^'\"]+)['\"]/i,
+        /getgenv\\(\\)\\.script_key\\s*=\\s*['\"]([^'\"]+)['\"]/i,
+        /script_key\\s*=\\s*['\"]([^'\"]+)['\"]/i,
+      ];
+      const lphKeyPattern = /[a-z0-9]{18,24}/g;
 
       function setStatus(text, color = "#58a6ff") {
         status.textContent = text;
@@ -294,12 +302,31 @@
 
       function findKeyCandidates(text) {
         if (!text) return [];
-        const matches = text.match(keyRegex) || [];
-        return [...new Set(matches)];
+        const preferred = [];
+        keyLiteralPatterns.forEach((pattern) => {
+          const match = text.match(pattern);
+          if (match && match[1]) {
+            preferred.push(match[1]);
+          }
+        });
+        const lphMatches = text.match(lphKeyPattern) || [];
+        const genericMatches = text.match(keyRegex) || [];
+        const combined = [...preferred, ...lphMatches, ...genericMatches];
+        return [...new Set(combined)];
+      }
+
+      function updateCandidateList(candidates) {
+        keyCandidates.innerHTML = "";
+        candidates.forEach((candidate) => {
+          const option = document.createElement("option");
+          option.value = candidate;
+          keyCandidates.appendChild(option);
+        });
       }
 
       function applyAutoKey() {
         const candidates = findKeyCandidates(source.value);
+        updateCandidateList(candidates);
         if (candidates.length === 0) {
           keyHint.textContent = "No key-like tokens detected.";
           setStatus("No script key detected.", "#f85149");
