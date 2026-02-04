@@ -91,6 +91,19 @@ LuaJIT executable are available. The script automatically prefers the bundled
 captures fallback payloads to `out/unpacked_dump.lua.json` for post-mortem
 analysis.
 
+### Web GUI
+
+You can run a lightweight HTML interface for deobfuscation without installing
+any additional dependencies:
+
+```bash
+python web_gui.py --port 8000
+```
+
+Open `http://127.0.0.1:8000` in your browser, paste the obfuscated Lua, and
+press **Deobfuscate**. The output panel shows the deobfuscated script, and the
+**Copy output** button copies it to your clipboard.
+
 ### Protection detection & runtime capture
 
 The sandbox runner exposes additional instrumentation helpers for analysing

@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Luraph Deobfuscator Web GUI</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+        background: #0e1117;
+        color: #e6edf3;
+      }
+      body {
+        margin: 0;
+        padding: 24px;
+      }
+      .container {
+        max-width: 1100px;
+        margin: 0 auto;
+        display: grid;
+        gap: 16px;
+      }
+      header {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      h1 {
+        margin: 0;
+        font-size: 24px;
+      }
+      p {
+        margin: 0;
+        color: #9aa4b2;
+      }
+      .panel {
+        background: #161b22;
+        border: 1px solid #2d333b;
+        border-radius: 12px;
+        padding: 16px;
+      }
+      label {
+        font-weight: 600;
+        display: block;
+        margin-bottom: 8px;
+      }
+      textarea,
+      input {
+        width: 100%;
+        border-radius: 8px;
+        border: 1px solid #30363d;
+        background: #0b0f14;
+        color: inherit;
+        font-family: "JetBrains Mono", "SFMono-Regular", ui-monospace, monospace;
+        padding: 12px;
+        box-sizing: border-box;
+      }
+      textarea {
+        min-height: 220px;
+        resize: vertical;
+      }
+      .row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 16px;
+      }
+      button {
+        border: none;
+        border-radius: 10px;
+        padding: 12px 18px;
+        background: #238636;
+        color: white;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button.secondary {
+        background: #30363d;
+      }
+      .actions {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      pre {
+        white-space: pre-wrap;
+        background: #0b0f14;
+        border-radius: 8px;
+        border: 1px solid #30363d;
+        padding: 12px;
+        min-height: 160px;
+        font-family: "JetBrains Mono", "SFMono-Regular", ui-monospace, monospace;
+      }
+      .status {
+        color: #58a6ff;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>Luraph Deobfuscator</h1>
+        <p>Paste an obfuscated Lua script, run the deobfuscator, and copy the output.</p>
+      </header>
+
+      <div class="panel">
+        <label for="source">Obfuscated Lua</label>
+        <textarea id="source" placeholder="Paste obfuscated Lua here..."></textarea>
+      </div>
+
+      <div class="panel row">
+        <div>
+          <label for="scriptKey">Script key (optional)</label>
+          <input id="scriptKey" placeholder="Leave blank for auto-detection" />
+        </div>
+        <div class="actions" style="align-items:end;">
+          <button id="runButton">Deobfuscate</button>
+          <button class="secondary" id="copyButton">Copy output</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="row" style="align-items:center;">
+          <label for="output">Deobfuscated Output</label>
+          <span class="status" id="status">Idle.</span>
+        </div>
+        <pre id="output"></pre>
+      </div>
+
+      <div class="panel">
+        <label for="stderr">Logs</label>
+        <pre id="stderr"></pre>
+      </div>
+    </div>
+
+    <script>
+      const runButton = document.getElementById("runButton");
+      const copyButton = document.getElementById("copyButton");
+      const source = document.getElementById("source");
+      const scriptKey = document.getElementById("scriptKey");
+      const output = document.getElementById("output");
+      const stderr = document.getElementById("stderr");
+      const status = document.getElementById("status");
+
+      function setStatus(text, color = "#58a6ff") {
+        status.textContent = text;
+        status.style.color = color;
+      }
+
+      async function deobfuscate() {
+        setStatus("Deobfuscating...");
+        output.textContent = "";
+        stderr.textContent = "";
+        const payload = {
+          source: source.value,
+          script_key: scriptKey.value,
+        };
+        const response = await fetch("/deobfuscate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        if (!data.ok) {
+          setStatus("Failed to deobfuscate.", "#f85149");
+        } else {
+          setStatus("Deobfuscation complete.", "#3fb950");
+        }
+        output.textContent = data.output || "";
+        stderr.textContent = data.stderr || "";
+      }
+
+      runButton.addEventListener("click", () => {
+        if (!source.value.trim()) {
+          setStatus("Please paste an obfuscated script first.", "#f85149");
+          return;
+        }
+        deobfuscate();
+      });
+
+      copyButton.addEventListener("click", async () => {
+        if (!output.textContent.trim()) {
+          setStatus("No output to copy.", "#f85149");
+          return;
+        }
+        await navigator.clipboard.writeText(output.textContent);
+        setStatus("Output copied to clipboard.", "#3fb950");
+      });
+    </script>
+  </body>
+</html>
