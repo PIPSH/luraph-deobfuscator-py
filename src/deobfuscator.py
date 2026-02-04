@@ -92,7 +92,10 @@ class LuaDeobfuscator:
         self._vm_max_steps = 100_000
         self._vm_timeout = 5.0
         self._vm_trace = vm_trace
-        self._script_key = script_key.strip() if script_key else None
+        initial_key = script_key.strip() if script_key else ""
+        if not initial_key:
+            initial_key = _resolve_env_script_key()
+        self._script_key = initial_key or None
         self._bootstrapper_path = self._normalise_bootstrapper(bootstrapper)
         self._last_render_validation: Dict[str, Any] = {}
         self._last_handler: VersionHandler | None = None

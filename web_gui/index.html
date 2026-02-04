@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Luraph Deobfuscator Web GUI</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+        background: radial-gradient(circle at top, #1b1f2a 0%, #0b0f14 45%, #07090d 100%);
+        color: #e6edf3;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 32px 24px 48px;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        display: grid;
+        gap: 20px;
+      }
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        padding: 18px 20px;
+        border-radius: 16px;
+        background: linear-gradient(135deg, rgba(45, 129, 247, 0.16), rgba(88, 166, 255, 0.08));
+        border: 1px solid rgba(88, 166, 255, 0.2);
+      }
+      h1 {
+        margin: 0;
+        font-size: 26px;
+      }
+      p {
+        margin: 0;
+        color: #9aa4b2;
+      }
+      .header-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-size: 13px;
+        background: rgba(88, 166, 255, 0.12);
+        border: 1px solid rgba(88, 166, 255, 0.3);
+        color: #58a6ff;
+      }
+      .panel {
+        background: rgba(16, 21, 29, 0.92);
+        border: 1px solid #2d333b;
+        border-radius: 16px;
+        padding: 18px;
+        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+      }
+      label {
+        font-weight: 600;
+        display: block;
+        margin-bottom: 10px;
+      }
+      textarea,
+      input {
+        width: 100%;
+        border-radius: 12px;
+        border: 1px solid #30363d;
+        background: #0b0f14;
+        color: inherit;
+        font-family: "JetBrains Mono", "SFMono-Regular", ui-monospace, monospace;
+        padding: 14px;
+      }
+      textarea {
+        min-height: 240px;
+        resize: vertical;
+      }
+      .row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 16px;
+      }
+      button {
+        border: none;
+        border-radius: 12px;
+        padding: 12px 18px;
+        background: linear-gradient(135deg, #2f81f7 0%, #238636 100%);
+        color: white;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 10px 20px rgba(35, 134, 54, 0.25);
+      }
+      button.secondary {
+        background: #21262d;
+        color: #e6edf3;
+        box-shadow: none;
+      }
+      button.ghost {
+        background: transparent;
+        border: 1px solid #30363d;
+        box-shadow: none;
+      }
+      .actions {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        align-items: flex-end;
+      }
+      .tabs {
+        display: flex;
+        gap: 8px;
+      }
+      .tab-button {
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: #0b0f14;
+        border: 1px solid #30363d;
+        font-size: 13px;
+        color: #9aa4b2;
+        cursor: pointer;
+      }
+      .tab-button.active {
+        color: #e6edf3;
+        border-color: #58a6ff;
+        background: rgba(88, 166, 255, 0.15);
+      }
+      pre {
+        white-space: pre-wrap;
+        background: #0b0f14;
+        border-radius: 12px;
+        border: 1px solid #30363d;
+        padding: 14px;
+        min-height: 180px;
+        font-family: "JetBrains Mono", "SFMono-Regular", ui-monospace, monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <div class="header-meta">
+          <h1>Luraph Deobfuscator</h1>
+          <p>Paste an obfuscated Lua script, run the deobfuscator, and copy the output.</p>
+        </div>
+        <div class="status-pill" id="statusPill">Idle</div>
+      </header>
+
+      <div class="panel">
+        <label for="source">Obfuscated Lua</label>
+        <textarea id="source" placeholder="Paste obfuscated Lua here..."></textarea>
+      </div>
+
+      <div class="panel row">
+        <div>
+          <label for="scriptKey">Script key (optional)</label>
+          <input id="scriptKey" placeholder="Leave blank for auto-detection" />
+        </div>
+        <div class="actions">
+          <button id="runButton">Deobfuscate</button>
+          <button class="secondary" id="copyButton">Copy output</button>
+          <button class="ghost" id="copyLogs">Copy logs</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="row" style="align-items:center;">
+          <label for="output">Deobfuscated Output</label>
+          <span class="status" id="status">Idle.</span>
+        </div>
+        <pre id="output"></pre>
+      </div>
+
+      <div class="panel">
+        <div class="row" style="align-items:center;">
+          <label for="logs">Logs</label>
+          <div class="tabs">
+            <button class="tab-button active" data-tab="stdout">Stdout</button>
+            <button class="tab-button" data-tab="stderr">Stderr</button>
+          </div>
+        </div>
+        <pre id="stdout"></pre>
+        <pre id="stderr" style="display:none;"></pre>
+      </div>
+    </div>
+
+    <script>
+      const runButton = document.getElementById("runButton");
+      const copyButton = document.getElementById("copyButton");
+      const source = document.getElementById("source");
+      const scriptKey = document.getElementById("scriptKey");
+      const output = document.getElementById("output");
+      const stdout = document.getElementById("stdout");
+      const stderr = document.getElementById("stderr");
+      const status = document.getElementById("status");
+      const statusPill = document.getElementById("statusPill");
+      const copyLogs = document.getElementById("copyLogs");
+      const tabButtons = document.querySelectorAll(".tab-button");
+
+      function setStatus(text, color = "#58a6ff") {
+        status.textContent = text;
+        status.style.color = color;
+        statusPill.textContent = text.replace(".", "");
+        statusPill.style.color = color;
+        statusPill.style.borderColor = color;
+      }
+
+      function switchTab(tabName) {
+        tabButtons.forEach((button) => {
+          button.classList.toggle("active", button.dataset.tab === tabName);
+        });
+        stdout.style.display = tabName === "stdout" ? "block" : "none";
+        stderr.style.display = tabName === "stderr" ? "block" : "none";
+      }
+
+      async function deobfuscate() {
+        setStatus("Deobfuscating...");
+        output.textContent = "";
+        stdout.textContent = "";
+        stderr.textContent = "";
+        const payload = {
+          source: source.value,
+          script_key: scriptKey.value,
+        };
+        const response = await fetch("/deobfuscate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        if (!data.ok) {
+          setStatus("Failed to deobfuscate.", "#f85149");
+        } else {
+          setStatus("Deobfuscation complete.", "#3fb950");
+        }
+        output.textContent = data.deobfuscated || data.output || "";
+        stdout.textContent = data.output || "";
+        stderr.textContent = data.stderr || "";
+        switchTab("stdout");
+      }
+
+      runButton.addEventListener("click", () => {
+        if (!source.value.trim()) {
+          setStatus("Please paste an obfuscated script first.", "#f85149");
+          return;
+        }
+        deobfuscate();
+      });
+
+      copyButton.addEventListener("click", async () => {
+        if (!output.textContent.trim()) {
+          setStatus("No output to copy.", "#f85149");
+          return;
+        }
+        await navigator.clipboard.writeText(output.textContent);
+        setStatus("Output copied to clipboard.", "#3fb950");
+      });
+
+      copyLogs.addEventListener("click", async () => {
+        const combined = `STDOUT\\n${stdout.textContent}\\n\\nSTDERR\\n${stderr.textContent}`;
+        await navigator.clipboard.writeText(combined.trim());
+        setStatus("Logs copied to clipboard.", "#3fb950");
+      });
+
+      tabButtons.forEach((button) => {
+        button.addEventListener("click", () => switchTab(button.dataset.tab));
+      });
+    </script>
+  </body>
+</html>
