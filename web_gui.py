@@ -88,12 +88,20 @@ class WebGuiHandler(BaseHTTPRequestHandler):
                 capture_output=True,
                 text=True,
             )
+            output_path = temp_path.with_name(f"{temp_path.stem}_deob.lua")
+            deobfuscated = ""
+            if output_path.exists():
+                try:
+                    deobfuscated = output_path.read_text(encoding="utf-8")
+                except OSError:
+                    deobfuscated = ""
 
         response = {
             "ok": result.returncode == 0,
             "returncode": result.returncode,
             "output": result.stdout,
             "stderr": result.stderr,
+            "deobfuscated": deobfuscated,
         }
         self._send_json(response)
 
